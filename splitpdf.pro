@@ -40,14 +40,8 @@ if highmass[0] eq -1 or lowmass[0] eq -1 then begin
    stop
 endif
 
-;; quote probabilities from the converged samples only, to match the PDF plot
-;; (highmass/lowmass must remain full-length indices for the mask below)
-nsteps = mcmcss.nsteps/mcmcss.nchains
-good = (reform(mstar,nsteps,mcmcss.nchains))[mcmcss.burnndx:*,*(mcmcss.goodchains)]
-phigh = total(good gt masscut)/n_elements(good)
-
-print, 'The probability of the low-mass solution is ' +  strtrim(1d0-phigh,2)
-print, 'The probability of the high-mass solution is ' +  strtrim(phigh,2)
+print, 'The probability of the low-mass solution is ' +  strtrim(double(n_elements(lowmass))/n_elements(mstar),2)
+print, 'The probability of the high-mass solution is ' +  strtrim(double(n_elements(highmass))/n_elements(mstar),2)
 
 ;; high mass solution (cut out low mass solutions)
 basename = file_dirname(idlfile) + path_sep() + file_basename(idlfile,'.mcmc.idl') + '.highmass.'
