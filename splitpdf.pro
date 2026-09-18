@@ -13,21 +13,25 @@
 ;   IDLFILE - The name of the EXOFAST output IDL file
 ;   MASSCUT - The value to cut on, in solar masses
 ;
+; OPTIONAL INPUTS:
+;   STARNDX - The index of the star whose mass is bimodal. Default is
+;             0 (the primary). Only relevant for multi-star fits,
+;             where MCMCSS.STAR is an NSTARS-element array.
+;
 ; MODIFICATION HISTORY
 ; 
 ;  2019/10/11 -- added
+;  2026/09/17 -- added multistar support
 ;-
-pro splitpdf, idlfile, masscut
+pro splitpdf, idlfile, masscut, starndx=starndx
 
 restore, idlfile
 
-;chi2 = reform(*(mcmcss.chi2),mcmcss.nsteps/mcmcss.nchains,mcmcss.nchains)
-;burnndx = getburnndx(chi2,goodchains=goodchains)
-;e = (reform(mcmcss.planet[0].e.value,mcmcss.nsteps/mcmcss.nchains,mcmcss.nchains))[burnndx:*,goodchains]
-;ar = (reform(mcmcss.planet[0].ar.value,mcmcss.nsteps/mcmcss.nchains,mcmcss.nchains))[burnndx:*,goodchains]
-;mstar = (reform(mcmcss.star.mstar.value,mcmcss.nsteps/mcmcss.nchains,mcmcss.nchains))[burnndx:*,goodchains]
+if n_elements(starndx) eq 0 then starndx = 0
 
-mstar = mcmcss.star.mstar.value
+;; NB: mcmcss.star is an NSTARS-element array, so mcmcss.star.mstar.value
+;; is [NSTEPS,NSTARS] -- select one star or the cut is meaningless
+mstar = mcmcss.star[starndx].mstar.value
 
 highmass = where(mstar gt masscut, complement=lowmass)
 
@@ -36,8 +40,14 @@ if highmass[0] eq -1 or lowmass[0] eq -1 then begin
    stop
 endif
 
-print, 'The probability of the low-mass solution is ' +  strtrim(double(n_elements(lowmass))/n_elements(mstar),2)
-print, 'The probability of the high-mass solution is ' +  strtrim(double(n_elements(highmass))/n_elements(mstar),2)
+;; quote probabilities from the converged samples only, to match the PDF plot
+;; (highmass/lowmass must remain full-length indices for the mask below)
+nsteps = mcmcss.nsteps/mcmcss.nchains
+good = (reform(mstar,nsteps,mcmcss.nchains))[mcmcss.burnndx:*,*(mcmcss.goodchains)]
+phigh = total(good gt masscut)/n_elements(good)
+
+print, 'The probability of the low-mass solution is ' +  strtrim(1d0-phigh,2)
+print, 'The probability of the high-mass solution is ' +  strtrim(phigh,2)
 
 ;; high mass solution (cut out low mass solutions)
 basename = file_dirname(idlfile) + path_sep() + file_basename(idlfile,'.mcmc.idl') + '.highmass.'
